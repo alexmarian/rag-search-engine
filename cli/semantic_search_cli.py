@@ -10,6 +10,7 @@ from lib.semantic_search import (
     semantic_search,
     verify_embeddings,
     verify_model,
+    embed_chunks
 )
 
 
@@ -72,9 +73,12 @@ def main() -> None:
         help="Number of sentences to overlap between chunks",
     )
 
+    subparsers.add_parser("embed_chunks", help="Embed text chunks using the embedding model")
     args = parser.parse_args()
 
     match args.command:
+        case "embed_chunks":
+            embed_chunks()
         case "verify":
             verify_model()
         case "embed_text":

@@ -1,3 +1,4 @@
+import json
 import os
 import re
 
@@ -10,6 +11,8 @@ from .search_utils import (
     DEFAULT_CHUNK_SIZE,
     DEFAULT_SEARCH_LIMIT,
     DEFAULT_SEMANTIC_CHUNK_SIZE,
+    CHUNK_METADATA_PATH,
+    CHUNK_EMBEDDINGS_PATH,
     load_movies,
 )
 
@@ -87,6 +90,46 @@ class SemanticSearch:
         return results
 
 
+class ChunkedSemanticSearch(SemanticSearch):
+    def __init__(self, model_name="all-MiniLM-L6-v2") -> None:
+        super().__init__(model_name)
+        self.chunk_embeddings = []
+        self.chunk_metadata = []
+
+    def build_embeddings(self, documents):
+        self.documents = documents
+        self.document_map = {}
+        all_chunks = []
+
+        for i, doc in enumerate(documents):
+            self.document_map[doc["id"]] = doc
+            if doc["description"] is None:
+                continue
+            doc_chunks = semantic_chunk(doc["description"], 4, 1)
+            all_chunks.append(doc_chunks)
+            for ci, chunk in enumerate(doc_chunks):
+                self.chunk_metadata.append({"movie_idx": i, "chunk_idx": ci, "total_chunks": len(doc_chunks)})
+
+        self.chunk_embeddings=self.model.encode(all_chunks, show_progress_bar=True)
+        np.save(MOVIE_EMBEDDINGS_PATH,self.chunk_embeddings)
+        with open(CHUNK_METADATA_PATH, 'w') as f:
+            json.dump({"chunks":  self.chunk_metadata, "total_chunks": len(all_chunks)}, f, indent=2)
+        return self.chunk_embeddings
+    def load_or_create_embeddings(self, documents):
+        self.documents = documents
+        self.document_map = {}
+        for doc in documents:
+            self.document_map[doc["id"]] = doc
+
+        if os.path.exists(CHUNK_EMBEDDINGS_PATH) and os.path.exists(CHUNK_METADATA_PATH):
+            self.chunk_embeddings = np.load(CHUNK_EMBEDDINGS_PATH)
+            with open(CHUNK_METADATA_PATH, "r") as f:
+                self.chunk_metadata = json.load(f)
+            return self.chunk_embeddings
+
+        return self.build_embeddings(documents)
+
+
 def cosine_similarity(vec1, vec2):
     dot_product = np.dot(vec1, vec2)
     norm1 = np.linalg.norm(vec1)
@@ -158,7 +201,7 @@ def fixed_size_chunking(
     n_words = len(words)
     i = 0
     while i < n_words:
-        chunk_words = words[i : i + chunk_size]
+        chunk_words = words[i: i + chunk_size]
         if chunks and len(chunk_words) <= overlap:
             break
 
@@ -189,7 +232,7 @@ def semantic_chunk(
     i = 0
     n_sentences = len(sentences)
     while i < n_sentences:
-        chunk_sentences = sentences[i : i + max_chunk_size]
+        chunk_sentences = sentences[i: i + max_chunk_size]
         if chunks and len(chunk_sentences) <= overlap:
             break
         chunks.append(" ".join(chunk_sentences))
@@ -206,3 +249,9 @@ def semantic_chunk_text(
     print(f"Semantically chunking {len(text)} characters")
     for i, chunk in enumerate(chunks):
         print(f"{i + 1}. {chunk}")
+
+def embed_chunks():
+    movies = load_movies()
+    ces = ChunkedSemanticSearch()
+    chunked_embeddings = ces.load_or_create_embeddings(movies)
+    print(f"Generated 72909 chunked embeddings")
