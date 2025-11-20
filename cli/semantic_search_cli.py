@@ -11,6 +11,7 @@ from lib.semantic_search import (
     semantic_search,
     verify_embeddings,
     verify_model,
+    search_chunked_command
 )
 
 
@@ -77,9 +78,16 @@ def main() -> None:
         "embed_chunks", help="Generate embeddings for chunked documents"
     )
 
+    search_chuncked_parser = subparsers.add_parser("search_chunked", help="Search chunked documents")
+    search_chuncked_parser.add_argument("query", type=str, help="Query to search")
+    search_chuncked_parser.add_argument(
+        "--limit", type=int, default=5, help="Number of results to return"
+    )
     args = parser.parse_args()
 
     match args.command:
+        case "search_chunked":
+            search_chunked_command(args.query, args.limit)
         case "verify":
             verify_model()
         case "embed_text":
