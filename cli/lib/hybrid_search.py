@@ -146,7 +146,7 @@ def enhance_query(query, enhance):
               If no errors, return the original query.
               Corrected:"""
       response = generate(MODEL, prompt)
-      print( f"Enhanced query ({enhance}): '{query}' -> '{response.response}'\n")
+      print( f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
       return response.response
     case "rewrite":
       prompt =  f"""Rewrite this movie search query to be more specific and searchable.
@@ -166,7 +166,25 @@ def enhance_query(query, enhance):
              
                   Rewritten query:"""
       response = generate(MODEL, prompt)
-      print( f"Enhanced query ({enhance}): '{query}' -> '{response.response}'\n")
+      print( f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
+      return response.response
+    case "expand":
+      prompt = f"""Expand this movie search query with related terms.
+                  Add synonyms and related concepts that might appear in movie descriptions.
+                  Keep expansions relevant and focused.
+                  This will be appended to the original query.
+                  
+                  Examples:
+                  
+                  - "scary bear movie" -> "scary horror grizzly bear movie terrifying film"
+                  - "action movie with bear" -> "action thriller bear chase fight adventure"
+                  - "comedy with bear" -> "comedy funny bear humor lighthearted"
+                  
+                  Query: "{query}"
+                  Return only the expanded query.
+                  """
+      response = generate(MODEL, prompt)
+      print( f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
       return response.response
     case _:
       return query
