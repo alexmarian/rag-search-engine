@@ -7,7 +7,7 @@ def main() -> None:
   subparser = parser.add_subparsers(dest="command", help="Available commands")
 
   normalize_parser = subparser.add_parser("normalize", help="Normalize a numeric vector")
-  normalize_parser.add_argument("vector", nargs="+", type=float, help="Hybrid search vector (space-separated floats)")
+  normalize_parser.add_argument("scores", nargs="+", type=float, help="Hybrid search vector (space-separated floats)")
 
   args = parser.parse_args()
 
