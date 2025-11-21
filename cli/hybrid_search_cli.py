@@ -22,20 +22,25 @@ def main() -> None:
                                help="search limit")
 
   rrf_parser = subparser.add_parser("rrf-search",
-                                         help="Available commands")
+                                    help="Available commands")
   rrf_parser.add_argument("query", type=str, help="search value")
   rrf_parser.add_argument("--k", type=int, nargs="?",
-                               default=DEFAULT_ALPHA, help=" alpha value")
+                          default=DEFAULT_ALPHA, help=" alpha value")
   rrf_parser.add_argument("--limit", type=int, nargs="?",
-                               default=DEFAULT_SEARCH_LIMIT,
-                               help="search limit")
-
+                          default=DEFAULT_SEARCH_LIMIT,
+                          help="search limit")
+  rrf_parser.add_argument(
+      "--enhance",
+      type=str,
+      choices=["spell","rewrite"],
+      help="Query enhancement method",
+  )
   args = parser.parse_args()
 
   match args.command:
     case "rrf-search":
-      results = rrf_search(args.query, args.k, args.limit)
-      for i, res in enumerate(results):
+      results = rrf_search(args.query, args.k, args.limit, args.enhance)
+      for i, res in enumerate(results, start=1):
         print(f"{i}. {res["doc"]["title"]}")
         print(f"RRF Score: {res["rrf_score"]:.4f}")
         print(
@@ -43,7 +48,7 @@ def main() -> None:
         print(res["doc"]["description"][:100])
     case "weighted-search":
       results = weighted_search(args.query, args.alpha, args.limit)
-      for i, res in enumerate(results):
+      for i, res in enumerate(results, start=1):
         print(f"{i}. {res["doc"]["title"]}")
         print(f"Hybrid Score: {res["hybrid_score"]:.4f}")
         print(
