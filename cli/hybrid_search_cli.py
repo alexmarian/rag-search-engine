@@ -1,5 +1,6 @@
 import argparse
 
+from lib.evaluation import evaluate_with_ollama
 from lib.hybrid_search import (
     normalize_scores,
     rrf_search_command,
@@ -53,6 +54,11 @@ def main() -> None:
         type=str,
         choices=["individual", "batch", "cross_encoder"],
         help="Reranking method",
+    )
+    rrf_parser.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Evaluate performance (default=False)",
     )
     rrf_parser.add_argument(
         "--limit", type=int, default=5, help="Number of results to return (default=5)"
@@ -124,6 +130,8 @@ def main() -> None:
                     print(f"   {', '.join(ranks)}")
                 print(f"   {res['document'][:100]}...")
                 print()
+            if args.evaluate:
+                evaluate_with_ollama(args.query, result["results"])
         case _:
             parser.print_help()
 
