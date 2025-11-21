@@ -1,3 +1,4 @@
+import json
 import os
 
 from .keyword_search import InvertedIndex
@@ -126,15 +127,78 @@ def weighted_search(query: str, alpha: float,
 
 
 def rrf_search(query: str, k: int,
-    limit: int = DEFAULT_SEARCH_LIMIT, enhance: str = None):
-  if enhance != None:
+    limit: int = DEFAULT_SEARCH_LIMIT, enhance: str = None, rerank: str = None):
+  if enhance is not None:
     query = enhance_query(query, enhance)
   documents = load_movies()
-  return HybridSearch(documents).rrf_search(query, k, limit)
+  match rerank:
+    case "individual":
+      reranked_results=[]
+      search_results = HybridSearch(documents).rrf_search(query, k, limit * 5)
+      for sr in search_results:
+        reranked_results.append(rerank_result(query, sr))
+        reranked_results.sort(key=lambda x: x["rerank_score"], reverse=True)
+        return reranked_results[:limit]
+    case "batch":
+      search_results = HybridSearch(documents).rrf_search(query, k, limit * 2)
+      ordered_ids = rerank_results(query, search_results)
+      print(ordered_ids)
+      sr_by_id = {}
+      for sr in search_results:
+        doc = sr.get("doc", {})
+        doc_id = doc.get("id") or sr.get("id")
+        print(f"doc_id: {doc_id}")
+        if doc_id is not None:
+          sr_by_id[doc_id] = sr
+      # return reranked results in the order provided by the reranker
+      reranked_list = [sr_by_id[i] for i in ordered_ids if i in sr_by_id]
+      return reranked_list[:limit]
+
+    case _:
+      return HybridSearch(documents).rrf_search(query, k, limit)
 
 
 def rrf_score(rank: float, k: int = 60):
   return 1 / (k + rank)
+
+def rerank_results(query: str, search_results: list[dict]):
+    doc_list_str = json.dumps(search_results)
+    prompt = f"""Rank these movies by relevance to the search query.
+              Query: "{query}"
+              Movies, json array of search results:
+              {doc_list_str}
+              
+              Return ONLY the doc nodes ids in order of relevance (best match first). Return only the valid JSON list, nothing else.
+              """
+    response = generate(MODEL, prompt)
+    arrtxt=response.response.replace("```json", "")
+    arttxt = arrtxt.replace("```", "")
+    print(arttxt)
+    return json.loads(arttxt)
+def rerank_result(query, search_result):
+    search_result["rerank_score"] = individual_rerank(query,
+                                                        search_result.get(
+                                                            "doc"))
+    return search_result
+
+
+def individual_rerank(query, doc) -> float:
+  prompt = f"""Rate how well this movie matches the search query.
+
+        Query: "{query}"
+        Movie: {doc.get("title", "")} - {doc.get("document", "")}
+
+        Consider:
+        - Direct relevance to query
+        - User intent (what they're looking for)
+        - Content appropriateness
+        
+        Rate 0-10 (10 = perfect match).
+        Give me ONLY the number in your response, no other text or explanation.
+        
+        Score:"""
+  response = generate(MODEL, prompt)
+  return float(response.response.rstrip())
 
 
 def enhance_query(query, enhance):
@@ -146,10 +210,10 @@ def enhance_query(query, enhance):
               If no errors, return the original query.
               Corrected:"""
       response = generate(MODEL, prompt)
-      print( f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
+      print(f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
       return response.response
     case "rewrite":
-      prompt =  f"""Rewrite this movie search query to be more specific and searchable.
+      prompt = f"""Rewrite this movie search query to be more specific and searchable.
                     Original: "{query}"
                     Consider:
                   - Common movie knowledge (famous actors, popular films)
@@ -166,7 +230,7 @@ def enhance_query(query, enhance):
              
                   Rewritten query:"""
       response = generate(MODEL, prompt)
-      print( f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
+      print(f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
       return response.response
     case "expand":
       prompt = f"""Expand this movie search query with related terms.
@@ -184,7 +248,7 @@ def enhance_query(query, enhance):
                   Return only the expanded query.
                   """
       response = generate(MODEL, prompt)
-      print( f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
+      print(f"Enhanced query ({enhance}): '{query}' -> '{response.response}'")
       return response.response
     case _:
       return query
