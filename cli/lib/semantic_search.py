@@ -78,7 +78,7 @@ class SemanticSearch:
         results = []
         for score, doc in similarities[:limit]:
             results.append(
-                {
+                {   "doc_id":doc["id"],
                     "score": score,
                     "title": doc["title"],
                     "description": doc["description"],
