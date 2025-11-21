@@ -5,7 +5,7 @@ from .keyword_search import InvertedIndex
 from .search_utils import load_movies
 from .semantic_search import ChunkedSemanticSearch
 from ollama import generate
-
+from sentence_transformers import CrossEncoder
 DEFAULT_ALPHA = 0.5
 DEFAULT_SEARCH_LIMIT = 5
 DEFAULT_RFF_K = 60
@@ -153,7 +153,17 @@ def rrf_search(query: str, k: int,
       # return reranked results in the order provided by the reranker
       reranked_list = [sr_by_id[i] for i in ordered_ids if i in sr_by_id]
       return reranked_list[:limit]
-
+    case "cross_encoder":
+      search_results = HybridSearch(documents).rrf_search(query, k, limit * 5)
+      pairs=[]
+      for sr in search_results:
+        pairs.append([query, f"{sr["doc"].get('title', '')} - {sr["doc"].get('document', '')}"])
+      cross_encoder = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L2-v2")
+      scores = cross_encoder.predict(pairs)
+      for score, sr in zip(scores,search_results):
+        sr["ce_score"] = float(score)
+      search_results.sort(key=lambda x: x["ce_score"], reverse=True)
+      return search_results[:limit]
     case _:
       return HybridSearch(documents).rrf_search(query, k, limit)
 
