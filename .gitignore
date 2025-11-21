@@ -11,3 +11,4 @@ wheels/
 .idea
 data
 uv.lock
+/cache/
