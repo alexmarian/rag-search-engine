@@ -27,6 +27,10 @@ def recall_at_k(
             relevant_count += 1
     return relevant_count / len(relevant_docs)
 
+def f1_at_k(precision: float, recall: float) -> float:
+    if precision + recall == 0:
+        return 0.0
+    return 2 * (precision * recall) / (precision + recall)
 
 def evaluate_command(limit: int = 5) -> dict:
     movies = load_movies()
@@ -51,10 +55,11 @@ def evaluate_command(limit: int = 5) -> dict:
 
         precision = precision_at_k(retrieved_docs, relevant_docs, limit)
         recall = recall_at_k(retrieved_docs, relevant_docs, limit)
-
+        f1 = f1_at_k(precision, recall)
         results_by_query[query] = {
             "precision": precision,
             "recall": recall,
+            "f1": f1,
             "retrieved": retrieved_docs[:limit],
             "relevant": list(relevant_docs),
         }
